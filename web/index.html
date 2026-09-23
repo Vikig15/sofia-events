@@ -201,13 +201,17 @@ const local = (iso, opts) => new Date(iso).toLocaleString('en-GB', { timeZone: T
 const dayKey = (iso) => new Date(iso).toLocaleDateString('en-CA', { timeZone: TZ });
 const hourOf = (iso) => Number(local(iso, { hour: '2-digit', hour12: false }));
 
+// Multi-day things that already started (exhibitions, festivals) count as "now", not as their start day.
+const effStart = (e) => (Date.parse(e.start_at) < Date.now() ? new Date().toISOString() : e.start_at);
+const isOngoing = (e) => Date.parse(e.start_at) < Date.now() - 3600000;
+
 function inWhen(e, when, now) {
-  const start = Date.parse(e.start_at);
+  const start = Date.parse(effStart(e));
   const today = dayKey(now.toISOString());
-  const d = dayKey(e.start_at);
+  const d = dayKey(effStart(e));
   switch (when) {
     case 'today': return d === today;
-    case 'tonight': return d === today && hourOf(e.start_at) >= 17;
+    case 'tonight': return d === today && (hourOf(e.start_at) >= 17 || isOngoing(e));
     case 'weekend': {
       // Friday 17:00 → Sunday night of the current/upcoming weekend.
       const noon = Date.parse(`${today}T12:00:00Z`);
@@ -256,6 +260,7 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&am
 
 // Sources without a published time store local midnight; show that honestly.
 function timeLabel(e) {
+  if (isOngoing(e)) return '<small>ongoing</small>';
   const t = local(e.start_at, { hour: '2-digit', minute: '2-digit' });
   return t === '00:00' && !e.end_at ? '<small>time TBA</small>' : t;
 }
@@ -290,7 +295,7 @@ function render() {
   const list = filtered();
   const days = new Map();
   for (const e of list) {
-    const k = dayKey(e.start_at);
+    const k = dayKey(effStart(e));
     if (!days.has(k)) days.set(k, []);
     days.get(k).push(e);
   }
@@ -300,7 +305,7 @@ function render() {
   const html = [];
   for (const [k, evs] of [...days.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     if (budget <= 0) break;
-    if (state.sort === 'best') evs.sort((a, b) => rank(b) - rank(a) || a.start_at.localeCompare(b.start_at));
+    evs.sort((a, b) => isOngoing(a) - isOngoing(b) || (state.sort === 'best' ? rank(b) - rank(a) : 0) || a.start_at.localeCompare(b.start_at));
     const take = evs.slice(0, budget);
     budget -= take.length;
     const label = k === today ? 'Today' : k === tomorrow ? 'Tomorrow' : local(`${k}T12:00:00Z`, { weekday: 'long' });

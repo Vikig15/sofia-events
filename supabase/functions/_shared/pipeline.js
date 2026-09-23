@@ -9,11 +9,14 @@ const HORIZON_DAYS = 120;
 // Official venue/organiser sites beat ticket resellers; aggregators (often Facebook links) come last.
 const PRIORITY = {
   luma: 1, meetup: 2, eventbrite: 3, partita: 3, sofiameetups: 3, timeheroes: 3, recurring: 4,
-  clwd: 4, ra: 4, ndk: 4, toplocentrala: 4, philharmonic: 4, opera: 4, nationaltheatre: 4, joystation: 4, unisofia: 4,
+  clwd: 4, ra: 4, ndk: 4, toplocentrala: 4, philharmonic: 4, opera: 4, nationaltheatre: 4, joystation: 4, unisofia: 4, sofialiveclub: 4,
   bilet: 5, eventim: 6, epaygo: 6, ticketbg: 6, visitsofia: 7, gosofia: 7, allevents: 8, sofiastage: 8,
 };
 
-export const sourceNames = () => SOURCES.map((s) => s.name);
+const IN_EDGE = typeof Deno !== 'undefined';
+
+// On Supabase (Deno) skip sources marked edge: false; locally run everything.
+export const sourceNames = () => SOURCES.filter((s) => !IN_EDGE || s.edge !== false).map((s) => s.name);
 
 export async function runSource(name) {
   const src = SOURCES.find((s) => s.name === name);

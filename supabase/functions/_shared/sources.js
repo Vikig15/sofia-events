@@ -2,9 +2,9 @@
 // and deduplicated. See docs/SOURCES.md for the research behind each one.
 //
 // minEvents: the run is flagged unhealthy (and does NOT prune old events) below this count.
-// Not registered: sofialiveclub.js runs in Node only (its server's TLS ciphers are rejected by Deno);
-// its shows are on Eventim anyway. Run it locally with `node scripts/ingest.js --only sofialiveclub`
-// after adding it here if needed.
+// edge: false = can't run on Supabase, only in local `npm run ingest`:
+//   timeheroes    Cloudflare bot challenge for datacenter IPs (403 "Just a moment...")
+//   sofialiveclub server only offers TLS 1.2 CBC ciphers, which Deno rejects (its shows are on Eventim anyway)
 import { icalConnector } from './connectors/ical.js';
 import { expandRules } from './recurring.js';
 // Ticketing & aggregators
@@ -40,6 +40,7 @@ import philharmonic from './connectors/philharmonic.js';
 import opera from './connectors/opera.js';
 import nationaltheatre from './connectors/nationaltheatre.js';
 import joystation from './connectors/joystation.js';
+import sofialiveclub from './connectors/sofialiveclub.js';
 import unisofia from './connectors/unisofia.js';
 import powerlifting from './connectors/powerlifting.js';
 
@@ -60,7 +61,7 @@ export const SOURCES = [
   { name: 'meetup', run: meetup, minEvents: 10 },
   { name: 'eventbrite', run: eventbrite, minEvents: 8 },
   { name: 'sofiameetups', run: sofiameetups, minEvents: 1 },
-  { name: 'timeheroes', run: timeheroes, minEvents: 2 },
+  { name: 'timeheroes', run: timeheroes, minEvents: 2, edge: false },
   { name: 'devbg', run: devbg, minEvents: 1 },
   { name: 'wizards', run: wizards, minEvents: 3 },
   { name: 'partita', run: partita, minEvents: 10 },
@@ -77,6 +78,7 @@ export const SOURCES = [
   { name: 'opera', run: opera, minEvents: 25 },
   { name: 'nationaltheatre', run: nationaltheatre, minEvents: 50 },
   { name: 'joystation', run: joystation, minEvents: 3 },
+  { name: 'sofialiveclub', run: sofialiveclub, minEvents: 8, edge: false },
   { name: 'unisofia', run: unisofia, minEvents: 3 },
   { name: 'powerlifting', run: powerlifting, minEvents: 0 },
   { name: 'ical', run: icalConnector(ICAL_FEEDS), minEvents: 5 },

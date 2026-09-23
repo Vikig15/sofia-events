@@ -33,6 +33,9 @@ const CAT_LABEL = {
   'free-events': 'Безплатни',
 };
 const DETAIL_CAP = 70;
+// Detail pages are slow from Supabase's region; stop resolving after this so the run always
+// finishes inside the Edge wall-clock limit (unresolved 'unknown' sales are simply skipped).
+const DETAIL_BUDGET_MS = 60_000;
 const DAY = 86_400_000;
 
 // Venue/title/host text that pins an event to Sofia.
@@ -199,7 +202,9 @@ export default async function epaygo() {
     .sort((a, b) => (a.e.date < b.e.date ? -1 : 1))
     .slice(0, DETAIL_CAP);
   const details = new Map();
+  const detailDeadline = Date.now() + DETAIL_BUDGET_MS;
   for (const r of needDetail) {
+    if (Date.now() > detailDeadline) break;
     try {
       details.set(r.id, await detail(r.id));
     } catch {
