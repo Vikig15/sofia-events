@@ -46,8 +46,9 @@ h1 small { display: block; font-size: 12px; font-weight: 500; color: var(--muted
 
 .search { width: 100%; margin-top: 10px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); outline: none; }
 .search:focus { border-color: var(--accent); }
-.row { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 2px; scrollbar-width: none; }
-.row::-webkit-scrollbar { display: none; }
+.filters { max-width: 760px; margin: 0 auto; padding: 4px 16px 0; }
+/* Chips wrap onto as many lines as needed: nothing hidden off-screen. */
+.row { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0 2px; }
 .chip { flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 11px; font-size: 13px; cursor: pointer; white-space: nowrap; }
 .chip[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
 .chip .n { opacity: .55; margin-left: 3px; font-size: 12px; }
@@ -95,10 +96,14 @@ details.health summary { cursor: pointer; }
       <button class="btn primary" id="refresh" type="button">↻ Refresh</button>
     </div>
     <input class="search" id="q" type="search" placeholder="Search title, venue…" autocomplete="off">
-    <div class="row" id="when"></div>
-    <div class="row" id="vibes"></div>
   </div>
 </header>
+
+<!-- Filters scroll with the page so the sticky header stays small on phones. -->
+<div class="filters">
+  <div class="row" id="when"></div>
+  <div class="row" id="vibes"></div>
+</div>
 
 <main class="wrap">
   <div class="status">
@@ -124,7 +129,7 @@ const VIBES = {
   social: '🤝 Meet people', networking: 'Networking', sport: 'Sport', fitness: 'Gym & strength', nightlife: 'Nightlife', music: 'Music',
   dance: 'Dance', games: 'Games', geek: 'Comics & fantasy', philosophy: 'Philosophy & books', business: 'Business', tech: 'Tech',
   language: 'Language exchange', comedy: 'Comedy', food: 'Food & drinks', outdoors: 'Outdoors', workshop: 'Workshops',
-  volunteering: 'Volunteering', culture: 'Culture', free: 'Free',
+  volunteering: 'Volunteering', theatre: '🎭 Theatre', culture: 'Culture', free: 'Free',
 };
 const SOCIAL_MIN = 55;
 
