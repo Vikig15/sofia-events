@@ -27,30 +27,35 @@ export default async function meetup() {
     }
   }
 
+  // 4 groups at a time: ~25s instead of ~90s, still gentle (~100 requests per run).
   const out = [];
-  for (const urlname of groups.keys()) {
-    const res = await post(GQL, { query: EVENTS_Q, variables: { u: urlname } }).catch(() => null);
-    const g = res?.data?.groupByUrlname;
-    for (const { node: e } of g?.events?.edges ?? []) {
-      const v = e.venue;
-      // Groups found by radius can still post events elsewhere; keep Sofia (or venue-less) only.
-      if (v?.city && !/sofia|софия/i.test(v.city)) continue;
-      out.push(
-        makeEvent('meetup', e.id, {
-          title: e.title,
-          start: e.dateTime,
-          end: e.endTime,
-          venue: v ? { name: v.name, address: v.address, lat: v.lat, lon: v.lon } : null,
-          url: e.eventUrl,
-          price: e.feeSettings ? { min: e.feeSettings.amount, currency: e.feeSettings.currency, free: false } : null,
-          categories: [g.name],
-          attendees: e.going?.totalCount ?? null,
-          online: e.isOnline,
-        }),
-      );
+  const queue = [...groups.keys()];
+  const worker = async () => {
+    for (let urlname = queue.shift(); urlname; urlname = queue.shift()) {
+      const res = await post(GQL, { query: EVENTS_Q, variables: { u: urlname } }).catch(() => null);
+      const g = res?.data?.groupByUrlname;
+      for (const { node: e } of g?.events?.edges ?? []) {
+        const v = e.venue;
+        // Groups found by radius can still post events elsewhere; keep Sofia (or venue-less) only.
+        if (v?.city && !/sofia|софия/i.test(v.city)) continue;
+        out.push(
+          makeEvent('meetup', e.id, {
+            title: e.title,
+            start: e.dateTime,
+            end: e.endTime,
+            venue: v ? { name: v.name, address: v.address, lat: v.lat, lon: v.lon } : null,
+            url: e.eventUrl,
+            price: e.feeSettings ? { min: e.feeSettings.amount, currency: e.feeSettings.currency, free: false } : null,
+            categories: [g.name],
+            attendees: e.going?.totalCount ?? null,
+            online: e.isOnline,
+          }),
+        );
+      }
+      await sleep(250);
     }
-    await sleep(300);
-  }
+  };
+  await Promise.all(Array.from({ length: 4 }, worker));
   console.log(`  meetup: crawled ${groups.size} groups`);
   return out;
 }

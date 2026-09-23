@@ -7,6 +7,7 @@ import meetup from './connectors/meetup.js';
 import devbg from './connectors/devbg.js';
 import wizards from './connectors/wizards.js';
 import { icalConnector } from './connectors/ical.js';
+import { expandRules } from './recurring.js';
 
 const ICAL_FEEDS = [
   { key: 'mixtape5', name: 'Mixtape 5', url: 'https://mixtape5.com/events.ics', home: 'https://mixtape5.com', tags: ['Music', 'Nightlife'] },
@@ -19,7 +20,8 @@ export const SOURCES = [
   { name: 'eventim', run: eventim, minEvents: 50 },
   { name: 'luma', run: luma, minEvents: 10 },
   { name: 'meetup', run: meetup, minEvents: 10 },
-  { name: 'devbg', run: devbg, minEvents: 3 },
+  { name: 'devbg', run: devbg, minEvents: 1 },
   { name: 'wizards', run: wizards, minEvents: 3 },
   { name: 'ical', run: icalConnector(ICAL_FEEDS), minEvents: 5 },
+  { name: 'recurring', run: async () => expandRules(), minEvents: 5 },
 ];

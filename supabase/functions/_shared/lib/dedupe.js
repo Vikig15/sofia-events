@@ -23,11 +23,13 @@ export function normTitle(s) {
 const localHour = (iso) =>
   new Date(iso).toLocaleString('sv-SE', { timeZone: 'Europe/Sofia' }).slice(0, 13); // "YYYY-MM-DD HH"
 
+export const dedupeKey = (e) => `${normTitle(e.title)}|${localHour(e.start)}`;
+
 export function dedupe(events) {
   const byKey = new Map();
   let merged = 0;
   for (const e of events) {
-    const key = `${normTitle(e.title)}|${localHour(e.start)}`;
+    const key = dedupeKey(e);
     const existing = byKey.get(key);
     if (!existing) {
       byKey.set(key, { ...e, alsoOn: [] });
