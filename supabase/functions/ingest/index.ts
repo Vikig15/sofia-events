@@ -1,4 +1,4 @@
-// POST /functions/v1/ingest                 -> fan out: one invocation per source (returns immediately)
+// POST /functions/v1/ingest                 -> fan out via Postgres: one invocation per source (returns immediately)
 // POST /functions/v1/ingest {"source":"x"}  -> run one source, upsert its events, log the run
 //
 // Called by the Refresh button and by the daily pg_cron job. Each source runs in its own
@@ -39,23 +39,19 @@ Deno.serve(async (req) => {
   const source: string | undefined = body.source ?? new URL(req.url).searchParams.get('source') ?? undefined;
 
   if (!source) {
-    // Children answer 202 immediately (their work continues in the background), so these calls are
-    // quick. Staggered + one retry: with 30+ simultaneous calls a few occasionally never arrive.
-    const self = `${URL_}/functions/v1/ingest`;
+    // Fan-out happens in Postgres (public.dispatch_ingest -> one pg_net request per source): an Edge
+    // Function calling itself ~30 times per invocation hits a platform limit. Sync the list first so
+    // new/removed connectors are picked up on the next refresh after a deploy.
     const names = sourceNames();
-    const dispatch = async (name: string, i: number) => {
-      await new Promise((r) => setTimeout(r, i * 150));
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const res = await fetch(self, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source: name }) });
-          await res.body?.cancel();
-          if (res.ok) return null;
-        } catch { /* retry */ }
-      }
-      return name;
-    };
-    const failed = (await Promise.all(names.map(dispatch))).filter(Boolean);
-    return json({ started: names.filter((n) => !failed.includes(n)), failed }, 202);
+    const now = new Date().toISOString();
+    await rest('sources?on_conflict=name', {
+      method: 'POST',
+      body: JSON.stringify(names.map((name) => ({ name, enabled: true, updated_at: now }))),
+      prefer: 'resolution=merge-duplicates,return=minimal',
+    });
+    await rest(`sources?name=not.in.(${names.map((n) => `"${n}"`).join(',')})`, { method: 'PATCH', body: JSON.stringify({ enabled: false, updated_at: now }) });
+    const started = await rest('rpc/dispatch_ingest', { method: 'POST', body: '{}' });
+    return json({ started }, 202);
   }
 
   if (!sourceNames().includes(source)) return json({ error: `unknown source ${source}` }, 400);
