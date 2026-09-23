@@ -5,6 +5,7 @@
 // edge: false = can't run on Supabase, only in local `npm run ingest`:
 //   timeheroes    Cloudflare bot challenge for datacenter IPs (403 "Just a moment...")
 //   sofialiveclub server only offers TLS 1.2 CBC ciphers, which Deno rejects (its shows are on Eventim anyway)
+//   epaygo        its pages time out from Supabase Edge IPs; only ~60 of its events aren't on other sources
 import { icalConnector } from './connectors/ical.js';
 import { expandRules } from './recurring.js';
 // Ticketing & aggregators
@@ -54,7 +55,7 @@ export const SOURCES = [
   { name: 'bilet', run: bilet, minEvents: 30 },
   { name: 'sofiastage', run: sofiastage, minEvents: 1000 },
   { name: 'allevents', run: allevents, minEvents: 60 },
-  { name: 'epaygo', run: epaygo, minEvents: 300 },
+  { name: 'epaygo', run: epaygo, minEvents: 300, edge: false },
   { name: 'ticketbg', run: ticketbg, minEvents: 25 },
   { name: 'visitsofia', run: visitsofia, minEvents: 40 },
   { name: 'luma', run: luma, minEvents: 10 },

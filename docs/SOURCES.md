@@ -24,7 +24,7 @@ Live health is in the app's "Sources" panel (`source_health` view).
 | Venues & culture | National Theatre (~135), Opera (~71), Toplocentrala (~67), Philharmonic (~49), NDK (~27), Joy Station, Sofia University public calendar |
 | Hand-curated | 7 weekly rules in `recurring.js` (5kmrun x2, Practical Philosophy, Inside Joke open mic, salsa, bachata, Timeleft) |
 
-Local-only (`edge: false`): TimeHeroes (Cloudflare challenge for datacenter IPs) and Sofia Live Club (TLS ciphers Deno rejects).
+Local-only (`edge: false`): TimeHeroes (Cloudflare challenge for datacenter IPs), Sofia Live Club (TLS ciphers Deno rejects) and EPAYGO (times out from Supabase Edge IPs; only ~60 of its events are unique, mostly theatre).
 Nightlife findings (EXE → CLWD, Secret Crush = FOMO brand, Carrusel flyer-only site): [research_nightlife.md](research/research_nightlife.md).
 
 ## Still worth adding
