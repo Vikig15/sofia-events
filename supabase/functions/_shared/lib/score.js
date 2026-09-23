@@ -17,6 +17,7 @@ const TAGS = {
   networking: /\b(networking|mixer|meetup|meet-up|social|connect|community|expats?|internationals?|afterwork|after work|happy hour)\b|нетуъркинг|запознан|общност|среща/i,
   language: /\b(language exchange|tandem|polyglot|english club|conversation club|speaking club)\b|езиков|разговорен клуб/i,
   comedy: /\b(stand-?up|comedy|improv|open mic|impro)\b|стендъп|комеди|импро/i,
+  theatre: /\b(theatre|theater|opera|ballet|musical|premiere)\b|театър|театрал|опера|балет|мюзикъл|постановка|спектакъл|пиеса|драма|комедия по/i,
   culture: /\b(theatre|theater|opera|ballet|exhibition|gallery|museum|cinema|film|screening|poetry|art)\b|театър|опера|балет|изложб|галери|музей|кино|филм|прожекц|поезия|изкуств/i,
   workshop: /\b(workshop|masterclass|class|course|lesson|seminar|training|bootcamp)\b|работилниц|уъркшоп|курс|семинар|обучение|урок/i,
   volunteering: /\b(volunteer|volunteering|charity|cleanup|clean-up|donation|shelter)\w*|доброволч|благотвор|дарител|почистван|приют/i,
