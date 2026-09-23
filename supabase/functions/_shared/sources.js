@@ -6,6 +6,8 @@
 //   timeheroes    Cloudflare bot challenge for datacenter IPs (403 "Just a moment...")
 //   sofialiveclub server only offers TLS 1.2 CBC ciphers, which Deno rejects (its shows are on Eventim anyway)
 //   epaygo        its pages time out from Supabase Edge IPs; only ~60 of its events aren't on other sources
+//   instagram     logged-out profile pages work from a home IP, 429 from datacenters (84 accounts, see instagram-accounts.js)
+// Local-only sources reach the app via `npm run push` (scripts/push-local.js).
 import { icalConnector } from './connectors/ical.js';
 import { expandRules } from './recurring.js';
 // Ticketing & aggregators
@@ -44,6 +46,21 @@ import joystation from './connectors/joystation.js';
 import sofialiveclub from './connectors/sofialiveclub.js';
 import unisofia from './connectors/unisofia.js';
 import powerlifting from './connectors/powerlifting.js';
+import domnakinoto from './connectors/domnakinoto.js';
+import comedyclub from './connectors/comedyclub.js';
+import inthemood from './connectors/inthemood.js';
+import iicsofia from './connectors/iicsofia.js';
+import institutfrancais from './connectors/institutfrancais.js';
+// Outdoors, sport, community
+import trekmania from './connectors/trekmania.js';
+import topguides from './connectors/topguides.js';
+import nbl from './connectors/nbl.js';
+import efbetleague from './connectors/efbetleague.js';
+import puzl from './connectors/puzl.js';
+import begach from './connectors/begach.js';
+import bevy from './connectors/bevy.js';
+import instagram from './connectors/instagram.js';
+import entase from './connectors/entase.js';
 
 const ICAL_FEEDS = [
   { key: 'mixtape5', name: 'Mixtape 5', url: 'https://mixtape5.com/events.ics', home: 'https://mixtape5.com', tags: ['Music', 'Nightlife'] },
@@ -54,11 +71,11 @@ export const SOURCES = [
   { name: 'eventim', run: eventim, minEvents: 50 },
   { name: 'bilet', run: bilet, minEvents: 30 },
   { name: 'sofiastage', run: sofiastage, minEvents: 1000 },
-  { name: 'allevents', run: allevents, minEvents: 60 },
+  { name: 'allevents', run: allevents, minEvents: 300 },
   { name: 'epaygo', run: epaygo, minEvents: 300, edge: false },
   { name: 'ticketbg', run: ticketbg, minEvents: 25 },
   { name: 'visitsofia', run: visitsofia, minEvents: 40 },
-  { name: 'luma', run: luma, minEvents: 10 },
+  { name: 'luma', run: luma, minEvents: 25 },
   { name: 'meetup', run: meetup, minEvents: 10 },
   { name: 'eventbrite', run: eventbrite, minEvents: 8 },
   { name: 'sofiameetups', run: sofiameetups, minEvents: 1 },
@@ -82,6 +99,20 @@ export const SOURCES = [
   { name: 'sofialiveclub', run: sofialiveclub, minEvents: 8, edge: false },
   { name: 'unisofia', run: unisofia, minEvents: 3 },
   { name: 'powerlifting', run: powerlifting, minEvents: 0 },
+  { name: 'domnakinoto', run: domnakinoto, minEvents: 15 },
+  { name: 'comedyclub', run: comedyclub, minEvents: 3 },
+  { name: 'inthemood', run: inthemood, minEvents: 5 },
+  { name: 'iicsofia', run: iicsofia, minEvents: 3 },
+  { name: 'institutfrancais', run: () => institutfrancais(), minEvents: 0 },
+  { name: 'trekmania', run: trekmania, minEvents: 3 },
+  { name: 'topguides', run: topguides, minEvents: 5 },
+  { name: 'nbl', run: nbl, minEvents: 0 },
+  { name: 'efbetleague', run: efbetleague, minEvents: 0 },
+  { name: 'puzl', run: puzl, minEvents: 2 },
+  { name: 'begach', run: begach, minEvents: 1 },
+  { name: 'bevy', run: bevy, minEvents: 0 },
+  { name: 'entase', run: entase, minEvents: 30 },
+  { name: 'instagram', run: () => instagram(), minEvents: 40, edge: false },
   { name: 'ical', run: icalConnector(ICAL_FEEDS), minEvents: 5 },
   { name: 'recurring', run: async () => expandRules(), minEvents: 5 },
 ];

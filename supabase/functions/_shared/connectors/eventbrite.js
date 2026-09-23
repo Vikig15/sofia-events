@@ -7,9 +7,13 @@ import { jsonLd } from '../lib/html.js';
 
 const BASE = 'https://www.eventbrite.com/d/bulgaria--sofia';
 // all-events first. Of ~20 category/keyword slugs tried on 2026-09-23 only performing-arts added
-// events (4); free/business/tech/keyword pages were subsets. Keep requests low: Eventbrite returns
-// HTTP 429 after ~30 rapid /d/ requests.
-const SLUGS = ['all-events', 'performing-arts--events'];
+// events (4); free/business/tech/keyword pages were subsets. A second pass (same day) found that
+// events--next-month adds later dates of recurring series (all-events lists one date per series);
+// events--this-weekend/this-month, nightlife, networking, free were subsets; hobbies, community,
+// food-and-drink, sports-and-fitness, health, science-and-tech, music redirect to /b/ browse pages with
+// no search data; the Cyrillic /d/bulgaria--софия/events/ page has no results. Keep requests low
+// (~6 per run): Eventbrite returns HTTP 429 after ~30 rapid /d/ requests.
+const SLUGS = ['all-events', 'performing-arts--events', 'events--next-month'];
 const MAX_PAGES = 5;
 const CENTER = { lat: 42.6977, lon: 23.3219 };
 
@@ -33,7 +37,7 @@ export default async function eventbrite() {
         throw new Error('eventbrite: __SERVER_DATA__ missing (page layout changed), JSON-LD has no times');
       }
       const pageCount = events?.pagination?.page_count ?? 1;
-      await sleep(600);
+      await sleep(1500);
       if (page >= pageCount) break;
     }
   }

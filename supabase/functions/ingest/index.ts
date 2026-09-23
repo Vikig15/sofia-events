@@ -46,10 +46,10 @@ Deno.serve(async (req) => {
     const now = new Date().toISOString();
     await rest('sources?on_conflict=name', {
       method: 'POST',
-      body: JSON.stringify(names.map((name) => ({ name, enabled: true, updated_at: now }))),
+      body: JSON.stringify(names.map((name) => ({ name, enabled: true, runner: 'edge', updated_at: now }))),
       prefer: 'resolution=merge-duplicates,return=minimal',
     });
-    await rest(`sources?name=not.in.(${names.map((n) => `"${n}"`).join(',')})`, { method: 'PATCH', body: JSON.stringify({ enabled: false, updated_at: now }) });
+    await rest(`sources?runner=eq.edge&name=not.in.(${names.map((n) => `"${n}"`).join(',')})`, { method: 'PATCH', body: JSON.stringify({ enabled: false, updated_at: now }) });
     const started = await rest('rpc/dispatch_ingest', { method: 'POST', body: '{}' });
     return json({ started }, 202);
   }
@@ -81,7 +81,8 @@ Deno.serve(async (req) => {
         await rest(`events?source=eq.${encodeURIComponent(source)}&last_seen=lt.${encodeURIComponent(run.started_at)}&start_at=gt.${seenAt}`, { method: 'DELETE' });
       }
       await finish({ ok, events: rows.length, min_events: minEvents });
-      await rest('rpc/refresh_feed', { method: 'POST', body: '{}' }).catch(() => {}); // precomputed feed_mv
+      // feed_mv is refreshed by a per-minute cron when marked dirty (many sources finish at once).
+      await rest('feed_state?id=eq.true', { method: 'PATCH', body: JSON.stringify({ dirty: true }) }).catch(() => {});
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       await finish({ ok: false, error: message.slice(0, 500) }).catch(() => {});

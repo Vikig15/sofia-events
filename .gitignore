@@ -3,3 +3,5 @@ data/
 .DS_Store
 .build/
 .claude/
+.env.local
+.env

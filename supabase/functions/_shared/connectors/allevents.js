@@ -1,5 +1,7 @@
 // Allevents.in Sofia: catch-all aggregator, largely events that originate on Facebook.
-// 1) Category pages (/sofia/<category>) embed `events_data = [...]` with start/end times, venue and
+// 1) The /sofia/all list is paginated (?page=N; <link rel="next"> stops at 10 but pages go on: 17 x 45
+//    on 2026-09-23 = ~740 events up to mid-2027, vs 45 on page 1), and category pages
+//    (/sofia/<category>) add a few more. They embed `events_data = [...]` with start/end times, venue and
 //    lat/lon, so most events need no detail fetch. CAUTION: their unix `start_time` is Sofia
 //    wall-clock time encoded as if it were UTC (Deep Purple 18:00 local -> 18:00Z), so we re-read it
 //    as Sofia local time.
@@ -11,11 +13,19 @@ import { makeEvent, sofiaLocalToIso } from '../lib/event.js';
 import { jsonLd, decodeEntities } from '../lib/html.js';
 
 const BASE = 'https://allevents.in/sofia';
+const MAX_ALL_PAGES = 25;
+// Page 1 of each category. The first 15 were in use before pagination was found (they are mostly
+// subsets of the paginated "all" list now, but still tag events); the rest each added 2-5 events not
+// on any "all" page on 2026-09-23. Tried, no unique events: music, concerts, performances,
+// performing-arts, live-music, fashion, this-weekend, today, tomorrow, free (-> free-events), film
+// (-> acting); empty: literary-art, fine-arts, networking, volunteering. 'kids' is deliberately skipped.
 const CATEGORIES = [
-  'all', 'meetups', 'workshops', 'health-wellness', 'sports', 'business', 'art', 'dance', 'festivals',
+  'meetups', 'workshops', 'health-wellness', 'sports', 'business', 'art', 'dance', 'festivals',
   'theatre', 'food-drinks', 'entertainment', 'comedy', 'parties', 'exhibitions', 'fitness',
+  'yoga', 'running', 'hiking', 'photography', 'books', 'language', 'cooking', 'crafts', 'gaming',
 ];
 const BUDGET_MS = 80_000; // whole connector, keeps us under the 90 s limit
+const LIST_BUDGET_MS = 60_000; // list/category pages; the rest is for RSS-only detail pages
 const MAX_DETAILS = 80;
 const MAX_SPAN_DAYS = 31; // skip "vouchers" / season-long listings
 const CENTER = { lat: 42.6977, lon: 23.3219 };
@@ -24,18 +34,33 @@ export default async function allevents() {
   const t0 = Date.now();
   const byId = new Map();
 
-  for (const cat of CATEGORIES) {
-    if (Date.now() - t0 > BUDGET_MS / 2) break;
-    let html;
-    try {
-      html = await get(`${BASE}/${cat}`, { as: 'text' });
-    } catch (err) {
-      if (cat === 'all') throw err;
-      continue;
-    }
-    for (const e of embeddedEvents(html)) {
+  const add = (html, cat) => {
+    const events = embeddedEvents(html);
+    for (const e of events) {
       if (!byId.has(e.event_id)) byId.set(e.event_id, fromEmbedded(e, cat));
       else if (byId.get(e.event_id)) byId.get(e.event_id).categories.push(cat);
+    }
+    return events.length;
+  };
+
+  for (let page = 1; page <= MAX_ALL_PAGES; page++) {
+    const html = await get(`${BASE}/all${page > 1 ? `?page=${page}` : ''}`, { as: 'text' }).catch((err) => {
+      if (page === 1) throw err;
+      return '';
+    });
+    const before = byId.size;
+    const n = add(html, 'all');
+    await sleep(1000);
+    // No rel=next check on purpose (it's missing from page 10 on); stop at an empty/repeating page.
+    if (!n || byId.size === before || Date.now() - t0 > LIST_BUDGET_MS * 0.6) break;
+  }
+
+  for (const cat of CATEGORIES) {
+    if (Date.now() - t0 > LIST_BUDGET_MS) break;
+    try {
+      add(await get(`${BASE}/${cat}`, { as: 'text' }), cat);
+    } catch {
+      continue;
     }
     await sleep(1000);
   }
@@ -75,10 +100,16 @@ export default async function allevents() {
     (e) =>
       e &&
       !e.online &&
+      !isKids(e.title) &&
       Date.parse(e.end ?? e.start) >= now &&
       (!e.end || Date.parse(e.end) - Date.parse(e.start) <= MAX_SPAN_DAYS * 86_400_000),
   );
 }
+
+// Kids-only events. Title-based: allevents' own 'kids' category also tags "90's kids" parties and runs.
+const KIDS = /за деца|за най-малките|детск[аио]? (театър|представлени|работилниц|парти|празни|шоу|спектакъл|концерт|лагер|кино|програм)|детски театър|куклен|бебе|малчугани|\b(for|with) (kids|children)\b|\bkids'? (workshop|class|party|camp|club|theat)|\bchildren'?s (workshop|theat|class)|\b[0-9]\+|\b[0-9]-1[0-2] (г|год|years)/i;
+const ADULT_OVERRIDE = /за възрастни|деца и възрастни|18\+|adults/i;
+const isKids = (title) => KIDS.test(title) && !ADULT_OVERRIDE.test(title);
 
 function embeddedEvents(html) {
   const out = [];

@@ -4,9 +4,12 @@
   "private": true,
   "description": "Personal aggregator of Sofia events where you can meet people in real life",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "ingest": "node scripts/ingest.js",
-    "ingest:one": "node scripts/ingest.js --only"
+    "ingest:one": "node scripts/ingest.js --only",
+    "push": "node scripts/push-local.js"
   }
 }
