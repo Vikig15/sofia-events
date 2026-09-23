@@ -1,7 +1,7 @@
 -- Daily refresh at 05:00 Sofia (02:00 UTC in summer / 03:00 in winter; cron runs in UTC).
 -- Needs a Vault secret named 'project_url' = https://<ref>.supabase.co (set once after linking).
 create extension if not exists pg_cron;
-create extension if not exists pg_net;
+create extension if not exists pg_net schema extensions;
 
 create or replace function public.trigger_ingest()
 returns bigint

@@ -4,6 +4,7 @@
 //   node scripts/ingest.js --only luma     one source
 import { writeFile, mkdir } from 'node:fs/promises';
 import { runSource, sourceNames } from '../supabase/functions/_shared/pipeline.js';
+import { collapse } from '../supabase/functions/_shared/lib/dedupe.js';
 
 const onlyIdx = process.argv.indexOf('--only');
 const names = onlyIdx > -1 ? [process.argv[onlyIdx + 1]] : sourceNames();
@@ -21,18 +22,8 @@ const results = await Promise.all(
   }),
 );
 
-// Same dedupe rule as the `feed` view: best priority, then most attendees.
-const groups = new Map();
-for (const r of results.flatMap((x) => x.rows)) {
-  const g = groups.get(r.dedupe_key) ?? [];
-  g.push(r);
-  groups.set(r.dedupe_key, g);
-}
-const feed = [...groups.values()].map((g) => {
-  g.sort((a, b) => a.priority - b.priority || (b.attendees ?? -1) - (a.attendees ?? -1) || a.id.localeCompare(b.id));
-  const [best, ...rest] = g;
-  return { ...best, first_seen: new Date().toISOString(), also_on: rest.map((o) => ({ source: o.source, url: o.url })) };
-});
+// Same fuzzy dedupe rule as the `feed` view.
+const feed = collapse(results.flatMap((x) => x.rows)).map((r) => ({ ...r, first_seen: new Date().toISOString() }));
 feed.sort((a, b) => a.start_at.localeCompare(b.start_at));
 
 const health = results.map((x) => x.health);

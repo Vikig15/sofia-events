@@ -2,7 +2,9 @@
 // "Столична програма Култура", exhibitions, festivals, business expos, concerts.
 //
 // Week list pages carry title, date range, category, image and description but no time or venue, so we
-// fetch the detail page (time, venue, address) for the events we keep, capped. iCal export is 403.
+// fetch the detail page (time, venue, address) for the events we keep, within a time budget: the site is
+// slow (1.5-3.5s per page), so typically only 25-40 details fit. Events without a detail page and without a
+// time in the blurb get 00:00 Sofia time (= "time unknown"). iCal export is 403.
 // The BG list also contains English-language duplicates (category "Exhibitions", "Business Events"...):
 // those are skipped.
 import { get, sleep } from '../lib/http.js';
@@ -12,6 +14,7 @@ import { textOf, decodeEntities, monthIndex, pad } from '../lib/html.js';
 const BASE = 'https://www.visitsofia.bg';
 const WEEKS = 6;
 const DETAIL_CAP = 90;
+const TIME_BUDGET_MS = 65_000; // detail pages take 1-3s each server-side; stop fetching them after this
 const DAY = 86_400_000;
 const LONG_RUN_DAYS = 31; // runs longer than this are only kept if they open in the future (openings are social)
 
@@ -20,6 +23,12 @@ const dmy = (s) => {
   const m = String(s).match(/(\d{2})\.(\d{2})\.(\d{4})/);
   return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
 };
+
+// "от 19:00 ч.", "Начало: 18.30 ч.", "19:00h" in the list blurb (used when the detail page wasn't fetched)
+function timeFromText(html) {
+  const m = textOf(html ?? '').match(/(?:от|начало:?|start:?|at)?\s*([01]?\d|2[0-3])[:.]([0-5]\d)\s*(?:ч|h)/i);
+  return m ? `${pad(m[1])}:${m[2]}` : null;
+}
 
 function parseWeek(html) {
   const out = [];
@@ -44,7 +53,7 @@ function parseWeek(html) {
 }
 
 async function detail(path) {
-  const html = await get(`${BASE}${encodeURI(path)}`, { as: 'text' });
+  const html = await get(`${BASE}${encodeURI(path)}&tmpl=component`, { as: 'text' });
   const p = (cls) => textOf(html.match(new RegExp(`class="${cls}">[\\s\\S]*?<p>([\\s\\S]*?)<\\/p>`))?.[1] ?? '') || null;
   const when = p('infodate'); // "понеделник 28 септември 2026 19:00" or "... 2026 - ..."
   const time = when?.match(/\d{4}\s+(\d{1,2}:\d{2})/)?.[1] ?? null;
@@ -68,12 +77,13 @@ async function detail(path) {
 }
 
 export default async function visitsofia() {
+  const t0 = Date.now();
   const today = sofiaToday();
   const byRp = new Map();
   let pagesOk = 0;
   for (let w = 0; w < WEEKS; w++) {
     const d = new Date(Date.parse(`${today}T12:00:00Z`) + w * 7 * DAY);
-    const url = `${BASE}/bg/component/jevents/week.listevents/${d.getUTCFullYear()}/${pad(d.getUTCMonth() + 1)}/${pad(d.getUTCDate())}/-?Itemid=330`;
+    const url = `${BASE}/bg/component/jevents/week.listevents/${d.getUTCFullYear()}/${pad(d.getUTCMonth() + 1)}/${pad(d.getUTCDate())}/-?Itemid=330&tmpl=component`;
     try {
       for (const e of parseWeek(await get(url, { as: 'text' }))) if (!byRp.has(e.rp)) byRp.set(e.rp, e);
       pagesOk++;
@@ -101,15 +111,20 @@ export default async function visitsofia() {
     return true;
   });
 
+  // Detail pages: soonest first, and those whose blurb has no start time before those that do.
   unique.sort((a, b) => (a.from < b.from ? -1 : 1));
+  // Single-day events first (a time matters more for a concert than for a month-long exhibition).
+  const rank = (e) => (timeFromText(e.desc) ? 2 : 0) + (e.to && e.to !== e.from ? 1 : 0);
+  const queue = [...unique].sort((a, b) => rank(a) - rank(b) || (a.from < b.from ? -1 : 1));
   const details = new Map();
-  for (const e of unique.slice(0, DETAIL_CAP)) {
+  for (const e of queue.slice(0, DETAIL_CAP)) {
+    if (Date.now() - t0 > TIME_BUDGET_MS) break;
     try {
       details.set(e.rp, await detail(e.path));
     } catch {
       /* list data is still usable */
     }
-    await sleep(350);
+    await sleep(300);
   }
 
   const out = [];
@@ -121,7 +136,7 @@ export default async function visitsofia() {
     out.push(
       makeEvent('visitsofia', e.rp, {
         title: decodeEntities(e.title),
-        start: sofiaLocalToIso(`${date} ${d?.time ?? '00:00'}`),
+        start: sofiaLocalToIso(`${date} ${d?.time ?? timeFromText(e.desc) ?? '00:00'}`),
         end: multiDay ? sofiaLocalToIso(`${e.to} 23:59`) : null,
         venue: d?.venueName || d?.address ? { name: d.venueName ?? null, address: d.address ?? null, lat: d.lat, lon: d.lon } : null,
         url: `${BASE}${encodeURI(e.path)}`,

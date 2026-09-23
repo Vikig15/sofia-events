@@ -1,12 +1,17 @@
 // Shared by the Edge Function and the local CLI: run one source and turn its events into DB rows.
 import { SOURCES } from './sources.js';
 import { tagEvent, scoreEvent } from './lib/score.js';
-import { dedupeKey } from './lib/dedupe.js';
+import { dedupeKey, titleTokens, localHour } from './lib/dedupe.js';
 
 const HORIZON_DAYS = 120;
 
 // Lower number wins when the same event is on several sources (richer data / RSVP counts first).
-const PRIORITY = { luma: 1, meetup: 2, eventbrite: 3, recurring: 4, bilet: 5, eventim: 9 };
+// Official venue/organiser sites beat ticket resellers; aggregators (often Facebook links) come last.
+const PRIORITY = {
+  luma: 1, meetup: 2, eventbrite: 3, partita: 3, sofiameetups: 3, timeheroes: 3, recurring: 4,
+  clwd: 4, ra: 4, ndk: 4, toplocentrala: 4, philharmonic: 4, opera: 4, nationaltheatre: 4, joystation: 4, unisofia: 4,
+  bilet: 5, eventim: 6, epaygo: 6, ticketbg: 6, visitsofia: 7, gosofia: 7, allevents: 8, sofiastage: 8,
+};
 
 export const sourceNames = () => SOURCES.map((s) => s.name);
 
@@ -52,6 +57,8 @@ export function toRow(e) {
     social_score: social,
     interest_score: interest,
     dedupe_key: dedupeKey(e),
+    title_tokens: titleTokens(e.title),
+    slot: localHour(e.start),
     priority: PRIORITY[e.source] ?? 6,
   };
 }

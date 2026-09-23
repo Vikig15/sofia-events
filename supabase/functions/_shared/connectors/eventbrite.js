@@ -1,14 +1,15 @@
 // Eventbrite Sofia: the /d/ discovery pages embed `window.__SERVER_DATA__` with the search results
 // (local start_date + start_time + timezone, venue with lat/lon, tags). The JSON-LD ItemList on the
-// same page only has dates without times, so we read __SERVER_DATA__ and use JSON-LD as a fallback.
-// /d/ pages are allowed by robots.txt. A few category slugs add events the "all-events" list misses.
+// same page only has dates without times, so it's not used for data. /d/ pages are allowed by robots.txt.
 import { get, sleep } from '../lib/http.js';
 import { makeEvent, sofiaLocalToIso } from '../lib/event.js';
 import { jsonLd } from '../lib/html.js';
 
 const BASE = 'https://www.eventbrite.com/d/bulgaria--sofia';
-// all-events first; the others only add a few extra events each (performing-arts adds the most).
-const SLUGS = ['all-events', 'performing-arts--events', 'free--events', 'business--events', 'science-and-tech--events'];
+// all-events first. Of ~20 category/keyword slugs tried on 2026-09-23 only performing-arts added
+// events (4); free/business/tech/keyword pages were subsets. Keep requests low: Eventbrite returns
+// HTTP 429 after ~30 rapid /d/ requests.
+const SLUGS = ['all-events', 'performing-arts--events'];
 const MAX_PAGES = 5;
 const CENTER = { lat: 42.6977, lon: 23.3219 };
 
@@ -26,13 +27,10 @@ export default async function eventbrite() {
       const data = serverData(html);
       const events = data?.search_data?.events;
       const results = events?.results ?? [];
-      if (results.length) {
-        for (const r of results) if (!byId.has(r.id)) byId.set(r.id, fromServer(r));
-      } else if (!data) {
-        for (const e of jsonLd(html)) {
-          const id = String(e.url ?? '').match(/-(\d+)(?:\?|$)/)?.[1];
-          if (id && !byId.has(id)) byId.set(id, fromJsonLd(id, e));
-        }
+      for (const r of results) if (!byId.has(r.id)) byId.set(r.id, fromServer(r));
+      if (!data && jsonLd(html).length) {
+        // JSON-LD only has dates (no times); rather than emit midnight starts, fail loudly.
+        throw new Error('eventbrite: __SERVER_DATA__ missing (page layout changed), JSON-LD has no times');
       }
       const pageCount = events?.pagination?.page_count ?? 1;
       await sleep(600);
@@ -72,24 +70,6 @@ function fromServer(r) {
       .map((t) => t.display_name),
     online: !!r.is_online_event,
     description: r.summary,
-  });
-}
-
-// Fallback if __SERVER_DATA__ disappears: JSON-LD has dates but no times.
-function fromJsonLd(id, e) {
-  const loc = e.location ?? {};
-  const lat = num(loc.geo?.latitude);
-  const lon = num(loc.geo?.longitude);
-  if (!inSofia(loc.address?.addressLocality, lat, lon)) return null;
-  return makeEvent('eventbrite', id, {
-    title: e.name,
-    start: sofiaLocalToIso(String(e.startDate).slice(0, 10)),
-    end: null,
-    venue: { name: loc.name ?? null, address: loc.address?.streetAddress ?? null, lat, lon },
-    url: cleanUrl(e.url),
-    image: e.image ?? null,
-    online: /Online/.test(e.eventAttendanceMode ?? ''),
-    description: e.description,
   });
 }
 
