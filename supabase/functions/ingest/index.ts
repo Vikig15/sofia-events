@@ -39,14 +39,23 @@ Deno.serve(async (req) => {
   const source: string | undefined = body.source ?? new URL(req.url).searchParams.get('source') ?? undefined;
 
   if (!source) {
+    // Children answer 202 immediately (their work continues in the background), so these calls are
+    // quick. Staggered + one retry: with 30+ simultaneous calls a few occasionally never arrive.
     const self = `${URL_}/functions/v1/ingest`;
     const names = sourceNames();
-    const calls = names.map((name) =>
-      fetch(self, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source: name }) }),
-    );
-    // @ts-ignore EdgeRuntime is provided by the Supabase runtime
-    EdgeRuntime.waitUntil(Promise.allSettled(calls));
-    return json({ started: names }, 202);
+    const dispatch = async (name: string, i: number) => {
+      await new Promise((r) => setTimeout(r, i * 150));
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const res = await fetch(self, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source: name }) });
+          await res.body?.cancel();
+          if (res.ok) return null;
+        } catch { /* retry */ }
+      }
+      return name;
+    };
+    const failed = (await Promise.all(names.map(dispatch))).filter(Boolean);
+    return json({ started: names.filter((n) => !failed.includes(n)), failed }, 202);
   }
 
   if (!sourceNames().includes(source)) return json({ error: `unknown source ${source}` }, 400);
@@ -61,24 +70,27 @@ Deno.serve(async (req) => {
   const finish = (patch: Record<string, unknown>) =>
     rest(`source_runs?id=eq.${run.id}`, { method: 'PATCH', body: JSON.stringify({ finished_at: new Date().toISOString(), ...patch }) });
 
-  try {
-    const { rows, minEvents } = await runSource(source);
-    const seenAt = new Date().toISOString();
-    for (let i = 0; i < rows.length; i += 500) {
-      const chunk = rows.slice(i, i + 500).map((r: Record<string, unknown>) => ({ ...r, last_seen: seenAt }));
-      await rest('events?on_conflict=id', { method: 'POST', body: JSON.stringify(chunk), prefer: 'resolution=merge-duplicates,return=minimal' });
+  const work = async () => {
+    try {
+      const { rows, minEvents } = await runSource(source);
+      const seenAt = new Date().toISOString();
+      for (let i = 0; i < rows.length; i += 500) {
+        const chunk = rows.slice(i, i + 500).map((r: Record<string, unknown>) => ({ ...r, last_seen: seenAt }));
+        await rest('events?on_conflict=id', { method: 'POST', body: JSON.stringify(chunk), prefer: 'resolution=merge-duplicates,return=minimal' });
+      }
+      const ok = rows.length >= minEvents;
+      // Future events this source no longer lists were cancelled or moved. Only prune on a healthy run,
+      // so a broken scraper never wipes good data.
+      if (ok) {
+        await rest(`events?source=eq.${encodeURIComponent(source)}&last_seen=lt.${encodeURIComponent(run.started_at)}&start_at=gt.${seenAt}`, { method: 'DELETE' });
+      }
+      await finish({ ok, events: rows.length, min_events: minEvents });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await finish({ ok: false, error: message.slice(0, 500) }).catch(() => {});
     }
-    const ok = rows.length >= minEvents;
-    // Future events this source no longer lists were cancelled or moved. Only prune on a healthy run,
-    // so a broken scraper never wipes good data.
-    if (ok) {
-      await rest(`events?source=eq.${encodeURIComponent(source)}&last_seen=lt.${encodeURIComponent(run.started_at)}&start_at=gt.${seenAt}`, { method: 'DELETE' });
-    }
-    await finish({ ok, events: rows.length, min_events: minEvents });
-    return json({ source, ok, events: rows.length });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    await finish({ ok: false, error: message.slice(0, 500) }).catch(() => {});
-    return json({ source, ok: false, error: message }, 500);
-  }
+  };
+  // @ts-ignore EdgeRuntime is provided by the Supabase runtime
+  EdgeRuntime.waitUntil(work());
+  return json({ source, started: true }, 202);
 });

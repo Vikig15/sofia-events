@@ -31,7 +31,20 @@ export async function runSource(name) {
   return { rows: [...rows.values()], minEvents: src.minEvents };
 }
 
+// Postgres rejects NUL and lone UTF-16 surrogates (e.g. an emoji cut in half by .slice()) inside JSON.
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]|\u0000/g;
+const sanitize = (v) =>
+  typeof v === 'string' ? v.replace(LONE_SURROGATE, '')
+  : Array.isArray(v) ? v.map(sanitize)
+  : v;
+
 export function toRow(e) {
+  const row = buildRow(e);
+  for (const k of Object.keys(row)) row[k] = sanitize(row[k]);
+  return row;
+}
+
+function buildRow(e) {
   const tags = tagEvent(e);
   const { social, interest } = scoreEvent(e, tags);
   return {
