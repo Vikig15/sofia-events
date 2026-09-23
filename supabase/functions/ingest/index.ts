@@ -81,6 +81,7 @@ Deno.serve(async (req) => {
         await rest(`events?source=eq.${encodeURIComponent(source)}&last_seen=lt.${encodeURIComponent(run.started_at)}&start_at=gt.${seenAt}`, { method: 'DELETE' });
       }
       await finish({ ok, events: rows.length, min_events: minEvents });
+      await rest('rpc/refresh_feed', { method: 'POST', body: '{}' }).catch(() => {}); // precomputed feed_mv
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       await finish({ ok: false, error: message.slice(0, 500) }).catch(() => {});

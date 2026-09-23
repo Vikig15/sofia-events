@@ -141,6 +141,7 @@ async function rest(path, init = {}) {
   const res = await fetch(`${CFG.supabaseUrl}/rest/v1/${path}`, {
     ...init, headers: { apikey: CFG.supabaseKey, authorization: `Bearer ${CFG.supabaseKey}`, ...(init.headers || {}) },
   });
+  if (res.status === 416) return []; // page past the end (parallel range requests)
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
   return res.json();
 }
@@ -151,15 +152,21 @@ async function loadFeed() {
     renderHealth(data.health.map((h) => ({ source: h.source, ok: h.ok, events: h.events, finished_at: data.generatedAt })));
     return data.events;
   }
+  // feed_mv = precomputed, deduped feed. Only the columns the page renders (descriptions are heavy).
+  const cols = 'id,source,title,start_at,end_at,venue_name,url,image,price_min,currency,is_free,attendees,recurring,tags,social_score,interest_score,first_seen,also_on';
   const until = new Date(Date.now() + 120 * 86400000).toISOString();
+  const page = (i) => rest(`feed_mv?select=${cols}&start_at=lt.${until}&order=start_at.asc,id.asc`, { headers: { range: `${i * 1000}-${i * 1000 + 999}` } });
   const out = [];
-  for (let from = 0; ; from += 1000) {
-    const page = await rest(`feed?select=*&start_at=lt.${until}&order=start_at.asc`, { headers: { range: `${from}-${from + 999}` } });
-    out.push(...page);
-    if (page.length < 1000) break;
+  for (let batch = 0; ; batch += 4) {
+    const pages = await Promise.all([0, 1, 2, 3].map((k) => page(batch + k)));
+    pages.forEach((p) => out.push(...p));
+    if (pages.some((p) => p.length < 1000)) break;
   }
+  // The materialized feed is refreshed hourly; drop anything that ended since.
+  const now = Date.now();
+  const live = out.filter((e) => Date.parse(e.end_at ?? e.start_at) + (e.end_at ? 0 : 3 * 3600000) >= now);
   rest('source_health?select=*&order=source').then(renderHealth).catch(() => {});
-  return out;
+  return live;
 }
 
 async function refresh() {
