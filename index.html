@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sofia Events</title>
+<meta name="theme-color" content="#14161a">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23ff6b3d'/><circle cx='12' cy='14' r='4' fill='white'/><circle cx='21' cy='14' r='4' fill='white' opacity='.75'/><path d='M6 25c1.5-4 4-6 6-6s4.5 2 6 6M15 25c1.5-4 4-6 6-6s4.5 2 6 6' stroke='white' stroke-width='2' fill='none'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  --bg: #f6f5f2; --surface: #ffffff; --surface-2: #efede8; --text: #16171a; --muted: #6b6d73;
+  --line: #e2e0da; --accent: #e8552b; --accent-soft: #fde6dd; --good: #1f8a5b; --good-soft: #dcf2e7;
+  --warn: #b7791f; --bad: #c53030; --chip: #f0eee9; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111215; --surface: #1a1c20; --surface-2: #22252a; --text: #eceae6; --muted: #9a9ca3;
+    --line: #2c2f35; --accent: #ff6b3d; --accent-soft: #3a211a; --good: #4cc38a; --good-soft: #17301f;
+    --warn: #e0a84a; --bad: #f07070; --chip: #25282e; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111215; --surface: #1a1c20; --surface-2: #22252a; --text: #eceae6; --muted: #9a9ca3;
+  --line: #2c2f35; --accent: #ff6b3d; --accent-soft: #3a211a; --good: #4cc38a; --good-soft: #17301f;
+  --warn: #e0a84a; --bad: #f07070; --chip: #25282e; --shadow: none;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 Inter, system-ui, -apple-system, sans-serif; }
+a { color: inherit; }
+button, input { font: inherit; color: inherit; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 80px; }
+
+header { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.bar { max-width: 760px; margin: 0 auto; padding: 12px 16px 10px; }
+.top { display: flex; align-items: center; gap: 12px; }
+h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; flex: 1; }
+h1 small { display: block; font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-weight: 600; font-size: 14px; display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn:disabled { opacity: .6; cursor: default; }
+.spin { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.search { width: 100%; margin-top: 10px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); outline: none; }
+.search:focus { border-color: var(--accent); }
+.row { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 2px; scrollbar-width: none; }
+.row::-webkit-scrollbar { display: none; }
+.chip { flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 11px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.chip[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.chip .n { opacity: .55; margin-left: 3px; font-size: 12px; }
+.chip.toggle[aria-pressed="true"] { background: var(--good); border-color: var(--good); color: #fff; }
+
+.status { font-size: 13px; color: var(--muted); padding: 12px 0 0; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.status select { background: transparent; border: none; color: var(--text); font-weight: 600; cursor: pointer; }
+
+.day { margin-top: 22px; }
+.day h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; font-weight: 700; }
+.day h2 b { color: var(--text); }
+.card { display: grid; grid-template-columns: 54px 1fr auto; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 8px; box-shadow: var(--shadow); }
+.time { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; padding-top: 1px; }
+.time small { display: block; font-weight: 500; font-size: 11px; color: var(--muted); }
+.title { font-weight: 600; font-size: 15.5px; text-decoration: none; display: block; overflow-wrap: anywhere; }
+.title:hover { color: var(--accent); }
+.venue { color: var(--muted); font-size: 13.5px; margin-top: 2px; overflow-wrap: anywhere; }
+.meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; align-items: center; }
+.tag { font-size: 11.5px; background: var(--chip); border-radius: 6px; padding: 2px 7px; color: var(--muted); }
+.tag.social { background: var(--good-soft); color: var(--good); font-weight: 600; }
+.tag.new { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.tag.src { background: transparent; border: 1px solid var(--line); }
+.tag.src a { text-decoration: none; }
+.star { border: none; background: none; cursor: pointer; font-size: 20px; line-height: 1; padding: 0 2px; color: var(--muted); align-self: start; }
+.star[aria-pressed="true"] { color: var(--accent); }
+.thumb { width: 54px; height: 54px; border-radius: 10px; object-fit: cover; margin-top: 6px; background: var(--surface-2); }
+
+.empty { text-align: center; color: var(--muted); padding: 60px 0; }
+details.health { margin-top: 36px; font-size: 13px; color: var(--muted); }
+details.health summary { cursor: pointer; }
+.hgrid { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 14px; margin-top: 10px; font-variant-numeric: tabular-nums; }
+.ok { color: var(--good); } .fail { color: var(--bad); }
+.more { display: block; margin: 16px auto 0; }
+@media (max-width: 420px) {
+  .card { grid-template-columns: 46px 1fr auto; gap: 10px; padding: 11px; }
+  .thumb { display: none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="top">
+      <h1>Sofia Events <small id="subtitle">Loading…</small></h1>
+      <button class="btn primary" id="refresh" type="button">↻ Refresh</button>
+    </div>
+    <input class="search" id="q" type="search" placeholder="Search title, venue…" autocomplete="off">
+    <div class="row" id="when"></div>
+    <div class="row" id="vibes"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="status">
+    <span id="count"></span>
+    <label>Sort <select id="sort"><option value="best">Best for meeting people</option><option value="time">Soonest first</option></select></label>
+  </div>
+  <div id="list"></div>
+  <button class="btn more" id="more" hidden type="button">Show more</button>
+  <details class="health"><summary id="healthSummary">Sources</summary><div class="hgrid" id="health"></div></details>
+</main>
+
+<script src="config.js"></script>
+<script>
+const CFG = window.SOFIA_EVENTS_CONFIG || {};
+const LIVE = Boolean(CFG.supabaseUrl && CFG.supabaseKey);
+const TZ = 'Europe/Sofia';
+const $ = (id) => document.getElementById(id);
+
+const WHEN = [
+  ['today', 'Today'], ['tonight', 'Tonight'], ['weekend', 'This weekend'], ['week', 'Next 7 days'], ['month', 'Next 30 days'], ['all', 'All'], ['saved', '★ Saved'],
+];
+const VIBES = {
+  social: '🤝 Meet people', networking: 'Networking', sport: 'Sport', fitness: 'Gym & strength', nightlife: 'Nightlife', music: 'Music',
+  dance: 'Dance', games: 'Games', geek: 'Comics & fantasy', philosophy: 'Philosophy & books', business: 'Business', tech: 'Tech',
+  language: 'Language exchange', comedy: 'Comedy', food: 'Food & drinks', outdoors: 'Outdoors', workshop: 'Workshops',
+  volunteering: 'Volunteering', culture: 'Culture', free: 'Free',
+};
+const SOCIAL_MIN = 55;
+
+let events = [];
+let state = load('state', { when: 'week', vibes: [], q: '', sort: 'best' });
+let saved = new Set(load('saved', []));
+let shown = 150;
+
+function load(k, d) { try { return JSON.parse(localStorage.getItem('se:' + k)) ?? d; } catch { return d; } }
+function store(k, v) { try { localStorage.setItem('se:' + k, JSON.stringify(v)); } catch {} }
+
+// ---------- data ----------
+async function rest(path, init = {}) {
+  const res = await fetch(`${CFG.supabaseUrl}/rest/v1/${path}`, {
+    ...init, headers: { apikey: CFG.supabaseKey, authorization: `Bearer ${CFG.supabaseKey}`, ...(init.headers || {}) },
+  });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+async function loadFeed() {
+  if (!LIVE) {
+    const data = await (await fetch('../data/feed.json', { cache: 'no-store' })).json();
+    renderHealth(data.health.map((h) => ({ source: h.source, ok: h.ok, events: h.events, finished_at: data.generatedAt })));
+    return data.events;
+  }
+  const until = new Date(Date.now() + 120 * 86400000).toISOString();
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const page = await rest(`feed?select=*&start_at=lt.${until}&order=start_at.asc`, { headers: { range: `${from}-${from + 999}` } });
+    out.push(...page);
+    if (page.length < 1000) break;
+  }
+  rest('source_health?select=*&order=source').then(renderHealth).catch(() => {});
+  return out;
+}
+
+async function refresh() {
+  const btn = $('refresh');
+  btn.disabled = true;
+  const label = (t) => (btn.innerHTML = `<span class="spin"></span>${t}`);
+  label('Starting…');
+  try {
+    if (!LIVE) { label('Local mode'); await new Promise((r) => setTimeout(r, 900)); events = await loadFeed(); render(); return; }
+    const t0 = Date.now();
+    const res = await fetch(`${CFG.supabaseUrl}/functions/v1/ingest`, { method: 'POST', headers: { 'content-type': 'application/json', apikey: CFG.supabaseKey }, body: '{}' });
+    const { started = [] } = await res.json();
+    // A source is done when its newest run finished after we clicked, or when it was skipped
+    // by the cooldown (its newest run is older than the click).
+    for (let i = 0; i < 45; i++) {
+      await new Promise((r) => setTimeout(r, 4000));
+      const runs = await rest('source_health?select=source,started_at,finished_at');
+      const done = started.filter((s) => {
+        const r = runs.find((x) => x.source === s);
+        if (!r) return false;
+        const startedAt = Date.parse(r.started_at);
+        return startedAt < t0 - 2000 ? i > 0 : Boolean(r.finished_at);
+      }).length;
+      label(`${done}/${started.length} sources`);
+      if (done === started.length) break;
+    }
+    events = await loadFeed();
+    render();
+  } catch (err) {
+    alert('Refresh failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↻ Refresh';
+  }
+}
+
+// ---------- filtering ----------
+const local = (iso, opts) => new Date(iso).toLocaleString('en-GB', { timeZone: TZ, ...opts });
+const dayKey = (iso) => new Date(iso).toLocaleDateString('en-CA', { timeZone: TZ });
+const hourOf = (iso) => Number(local(iso, { hour: '2-digit', hour12: false }));
+
+function inWhen(e, when, now) {
+  const start = Date.parse(e.start_at);
+  const today = dayKey(now.toISOString());
+  const d = dayKey(e.start_at);
+  switch (when) {
+    case 'today': return d === today;
+    case 'tonight': return d === today && hourOf(e.start_at) >= 17;
+    case 'weekend': {
+      // Friday 17:00 → Sunday night of the current/upcoming weekend.
+      const noon = Date.parse(`${today}T12:00:00Z`);
+      const sunday = noon + ((7 - new Date(noon).getUTCDay()) % 7) * 86400000;
+      const friday = new Date(sunday - 2 * 86400000).toISOString().slice(0, 10);
+      const sun = new Date(sunday).toISOString().slice(0, 10);
+      return d >= friday && d <= sun && (d !== friday || hourOf(e.start_at) >= 17);
+    }
+    case 'week': return start < now.getTime() + 7 * 86400000;
+    case 'month': return start < now.getTime() + 30 * 86400000;
+    case 'saved': return saved.has(e.id);
+    default: return true;
+  }
+}
+
+function matchesVibe(e, v) {
+  if (v === 'social') return e.social_score >= SOCIAL_MIN;
+  if (v === 'free') return e.is_free === true;
+  return e.tags.includes(v);
+}
+
+function filtered() {
+  const now = new Date();
+  const q = state.q.trim().toLowerCase();
+  return events.filter((e) =>
+    inWhen(e, state.when, now) &&
+    state.vibes.every((v) => matchesVibe(e, v)) &&
+    (!q || `${e.title} ${e.venue_name ?? ''} ${(e.tags || []).join(' ')}`.toLowerCase().includes(q)));
+}
+
+const rank = (e) => 0.65 * e.social_score + 0.35 * e.interest_score + (saved.has(e.id) ? 100 : 0);
+
+// ---------- rendering ----------
+function renderChips() {
+  $('when').innerHTML = WHEN.map(([k, l]) => `<button class="chip" type="button" data-when="${k}" aria-pressed="${state.when === k}">${l}</button>`).join('');
+  const now = new Date();
+  const pool = events.filter((e) => inWhen(e, state.when, now));
+  $('vibes').innerHTML = Object.entries(VIBES).map(([k, l]) => {
+    const n = pool.filter((e) => matchesVibe(e, k)).length;
+    if (!n && !state.vibes.includes(k)) return '';
+    return `<button class="chip ${k === 'social' ? 'toggle' : ''}" type="button" data-vibe="${k}" aria-pressed="${state.vibes.includes(k)}">${l}<span class="n">${n}</span></button>`;
+  }).join('');
+}
+
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+function card(e) {
+  const isNew = Date.now() - Date.parse(e.first_seen) < 48 * 3600000 && !e.recurring;
+  const price = e.is_free ? 'Free' : e.price_min != null ? `from ${Number(e.price_min).toFixed(0)} ${e.currency || 'EUR'}` : '';
+  const tags = (e.tags || []).filter((t) => VIBES[t]).slice(0, 3);
+  const others = (e.also_on || []).map((o) => `<a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.source)}</a>`).join(', ');
+  const end = e.end_at && dayKey(e.end_at) !== dayKey(e.start_at) ? `<small>→ ${local(e.end_at, { day: 'numeric', month: 'short' })}</small>` : '';
+  return `<article class="card">
+    <div class="time">${local(e.start_at, { hour: '2-digit', minute: '2-digit' })}${end}${e.image ? `<img class="thumb" loading="lazy" src="${esc(e.image)}" alt="">` : ''}</div>
+    <div>
+      <a class="title" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>
+      ${e.venue_name ? `<div class="venue">${esc(e.venue_name)}</div>` : ''}
+      <div class="meta">
+        ${isNew ? '<span class="tag new">NEW</span>' : ''}
+        ${e.social_score >= SOCIAL_MIN ? '<span class="tag social">🤝 social</span>' : ''}
+        ${e.recurring ? '<span class="tag">weekly</span>' : ''}
+        ${e.attendees ? `<span class="tag">👥 ${e.attendees} going</span>` : ''}
+        ${price ? `<span class="tag">${price}</span>` : ''}
+        ${tags.map((t) => `<span class="tag">${esc(VIBES[t])}</span>`).join('')}
+        <span class="tag src">${esc(e.source)}${others ? ` · also ${others}` : ''}</span>
+      </div>
+    </div>
+    <button class="star" type="button" data-star="${esc(e.id)}" aria-pressed="${saved.has(e.id)}" aria-label="Save">${saved.has(e.id) ? '★' : '☆'}</button>
+  </article>`;
+}
+
+function render() {
+  renderChips();
+  const list = filtered();
+  const days = new Map();
+  for (const e of list) {
+    const k = dayKey(e.start_at);
+    if (!days.has(k)) days.set(k, []);
+    days.get(k).push(e);
+  }
+  let budget = shown;
+  const today = dayKey(new Date().toISOString());
+  const tomorrow = dayKey(new Date(Date.now() + 86400000).toISOString());
+  const html = [];
+  for (const [k, evs] of [...days.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    if (budget <= 0) break;
+    if (state.sort === 'best') evs.sort((a, b) => rank(b) - rank(a) || a.start_at.localeCompare(b.start_at));
+    const take = evs.slice(0, budget);
+    budget -= take.length;
+    const label = k === today ? 'Today' : k === tomorrow ? 'Tomorrow' : local(`${k}T12:00:00Z`, { weekday: 'long' });
+    html.push(`<section class="day"><h2><b>${label}</b> · ${local(`${k}T12:00:00Z`, { day: 'numeric', month: 'long' })} · ${evs.length}</h2>${take.map(card).join('')}</section>`);
+  }
+  $('list').innerHTML = html.join('') || `<div class="empty">No events match. Try a wider time range or fewer filters.</div>`;
+  $('more').hidden = list.length <= shown;
+  $('count').textContent = `${list.length} event${list.length === 1 ? '' : 's'}`;
+  $('subtitle').textContent = `${events.length} upcoming · ${LIVE ? 'live' : 'local preview'}`;
+}
+
+function renderHealth(rows) {
+  const bad = rows.filter((r) => !r.ok).length;
+  $('healthSummary').textContent = `Sources: ${rows.length - bad}/${rows.length} healthy`;
+  $('health').innerHTML = rows.map((r) => `
+    <span class="${r.ok ? 'ok' : 'fail'}">${r.ok ? '●' : '○'} ${esc(r.source)}${r.error ? ` <small>${esc(r.error.slice(0, 60))}</small>` : ''}</span>
+    <span>${r.events ?? '–'}</span>
+    <span>${r.finished_at ? local(r.finished_at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'running…'}</span>`).join('');
+}
+
+// ---------- events ----------
+document.addEventListener('click', (ev) => {
+  const t = ev.target.closest('[data-when],[data-vibe],[data-star]');
+  if (!t) return;
+  if (t.dataset.when) state.when = t.dataset.when;
+  if (t.dataset.vibe) {
+    const v = t.dataset.vibe;
+    state.vibes = state.vibes.includes(v) ? state.vibes.filter((x) => x !== v) : [...state.vibes, v];
+  }
+  if (t.dataset.star) {
+    const id = t.dataset.star;
+    saved.has(id) ? saved.delete(id) : saved.add(id);
+    store('saved', [...saved]);
+  }
+  shown = 150;
+  store('state', state);
+  render();
+});
+$('q').value = state.q;
+$('q').addEventListener('input', (ev) => { state.q = ev.target.value; store('state', state); render(); });
+$('sort').value = state.sort;
+$('sort').addEventListener('change', (ev) => { state.sort = ev.target.value; store('state', state); render(); });
+$('more').addEventListener('click', () => { shown += 150; render(); });
+$('refresh').addEventListener('click', refresh);
+
+loadFeed().then((e) => { events = e; render(); }).catch((err) => {
+  $('list').innerHTML = `<div class="empty">Couldn't load events: ${esc(err.message)}</div>`;
+});
+</script>
+</body>
+</html>
