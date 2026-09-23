@@ -9,7 +9,7 @@ Raw per-area research: [ticketing & venues](research/research_ticketing_venues.m
 2. **The most social events are the hardest to get.** About 55–65% of organisers of highly participatory events (pub quizzes, run clubs, board-game cafés, comedy, book clubs, hiking groups, ESN) publish **only on Facebook/Instagram**, which are closed to bots. Handle that with (a) hand-curated weekly rules and (b) a future "paste a link" feature, not by scraping Facebook.
 3. **Ticketing sites give volume; Luma, Meetup and weekly rules give the people-meeting.** Rank accordingly: participatory formats and events with RSVP counts beat concerts in a seat.
 
-## Built: 33 connectors (in `supabase/functions/_shared/connectors/`), as of 2026-09-23
+## Built: 48 connectors (in `supabase/functions/_shared/connectors/`), as of 2026-09-23
 
 About 2,800 unique upcoming in-person events after fuzzy cross-source dedupe (~5,000 raw listings).
 Live health is in the app's "Sources" panel (`source_health` view).
@@ -22,16 +22,18 @@ Live health is in the app's "Sources" panel (`source_health` view).
 | Dance & sport | partita.bg (~31), salsavida (~28), 5kmrun, racecalendar.bg, chess-results, powerlifting federation |
 | Nightlife | Resident Advisor (~24), CLWD (ex-EXE, ~14), Go Sofia (43 bar/club venue pages, ~82), Mixtape 5 iCal, Sofia Live Club (local only) |
 | Venues & culture | National Theatre (~135), Opera (~71), Toplocentrala (~67), Philharmonic (~49), NDK (~27), Joy Station, Sofia University public calendar |
+| Culture (added) | Дом на киното (~62 incl. Sofia Documental Q&As), Entase (~83: Възраждане, Théatro, Carrusel…), In The Mood Jazz Club (~19), Italian Cultural Institute (~16), Institut français (between seasons), Комеди Клуб (~10) |
+| Outdoors, sport, community (added) | TrekMania & TopGuides day hikes from Sofia (~34), NBL basketball & efbet League football home games, Puzl coworking events, Begach runs, Bevy (GDG, Startup Grind, CNCF chapters) |
+| Instagram (local push) | 84 curated Sofia accounts (clubs, promoters, quizzes, comedy, run clubs, board-game stores, ESN, startups…), ~100 events/day parsed from captions & flyer text. See [research_instagram.md](research/research_instagram.md) |
 | Hand-curated | 7 weekly rules in `recurring.js` (5kmrun x2, Practical Philosophy, Inside Joke open mic, salsa, bachata, Timeleft) |
 
-Local-only (`edge: false`): TimeHeroes (Cloudflare challenge for datacenter IPs), Sofia Live Club (TLS ciphers Deno rejects) and EPAYGO (times out from Supabase Edge IPs; only ~60 of its events are unique, mostly theatre).
+Local-only (`edge: false`, uploaded with `npm run push`): Instagram (429 from datacenter IPs), TimeHeroes (Cloudflare challenge for datacenter IPs), Sofia Live Club (TLS ciphers Deno rejects) and EPAYGO (times out from Supabase Edge IPs; only ~60 of its events are unique, mostly theatre).
 Nightlife findings (EXE → CLWD, Secret Crush = FOMO brand, Carrusel flyer-only site): [research_nightlife.md](research/research_nightlife.md).
 
 ## Still worth adding
 
 | Source | Why | Notes |
 |---|---|---|
-| Entase (Carrusel's ticketing) | Club nights | Not investigated yet |
 | Ticket Station | Big concerts/festivals | JS-only, token-gated API → headless browser |
 | Hiking clubs | Outdoors, very social | Mostly Facebook; topguides.bg calendar is JS-only |
 | LLM tagging pass | Better tags than keyword regexes (e.g. K-pop shows tagged "networking") | Batch new events through Claude once per run |

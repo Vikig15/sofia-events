@@ -11,8 +11,10 @@ Personal aggregator of events in Sofia where you can meet people in real life, a
 ```
 web/index.html ──read──▶ Supabase `feed` view (fuzzy-deduped, RLS read-only)
       │                          ▲
-      └─Refresh─▶ Edge Function `ingest` ──fan-out, one call per source──▶ 32 connectors ──▶ `events` table
-pg_cron 05:00 ──────────────┘                                           (10-min cooldown per source)
+      └─Refresh─▶ Edge Function `ingest` ──pg_net fan-out, one call per source──▶ 43 connectors ──▶ `events`
+pg_cron 05:00 ──────────────┘                                                (10-min cooldown per source)
+npm run push (this Mac) ──▶ RPC ingest_rows ──▶ `events`  (Instagram + 3 other local-only sources)
+`feed_mv` (materialized, fuzzy-deduped) is refreshed by a per-minute cron whenever `events` changed.
 ```
 
 - `supabase/functions/_shared/connectors/`: one file per source, each returns events in the shape documented in `lib/event.js`. Must run in both Node and Deno (no npm deps, no `node:` imports).
@@ -20,6 +22,17 @@ pg_cron 05:00 ──────────────┘                     
 - `supabase/functions/_shared/lib/score.js`: tags plus the "can I meet people here" and interest scores.
 - `supabase/functions/_shared/lib/dedupe.js`: fuzzy cross-source dedupe (mirrored in SQL by the `feed` view).
 - `supabase/functions/_shared/recurring.js`: hand-curated weekly events (organisers that only post on Facebook/Instagram).
+
+## Local-only sources (Instagram, EPAYGO, TimeHeroes, Sofia Live Club)
+
+These block Supabase's datacenter IPs, so they run on this Mac and upload to the live app:
+
+```bash
+npm run push                 # all local-only sources → Supabase (via token-protected RPC ingest_rows)
+npm run push -- instagram    # just one
+```
+
+Needs `.env.local` (git-ignored; holds the push token, which is also in Supabase Vault as `local_ingest_token`).
 
 ## Local
 
