@@ -35,7 +35,7 @@ const CAT_LABEL = {
 const DETAIL_CAP = 70;
 // Detail pages are slow from Supabase's region; stop resolving after this so the run always
 // finishes inside the Edge wall-clock limit (unresolved 'unknown' sales are simply skipped).
-const DETAIL_BUDGET_MS = 60_000;
+const DETAIL_BUDGET_MS = 35_000;
 const DAY = 86_400_000;
 
 // Venue/title/host text that pins an event to Sofia.
@@ -134,35 +134,46 @@ export default async function epaygo() {
   const now = Date.now();
   const byId = new Map(); // PUBLIC_ID -> { name, date, time, place, cats, pic }
 
-  for (const cat of CATS) {
-    try {
-      const html = await get(`${BASE}/epaygo/${cat}`, { as: 'text' });
-      for (const x of embeddedArray(html, 'events_page_tt')) {
-        const id = x['SALE.PUBLIC_ID'];
-        if (!id) continue;
-        const prev = byId.get(id);
-        if (prev) {
-          prev.cats.add(CAT_LABEL[cat]);
-          continue;
-        }
-        const d = dmyToLocal(x['SALE.EVENT_DATE']);
-        byId.set(id, {
-          name: decodeEntities(x['SALE.NAME'] ?? '').trim(),
-          date: d?.date ?? null,
-          time: d?.time ?? x.EVENT_HOUR ?? null,
-          place: decodeEntities(x['SALE.EVENT_PLACE'] ?? '').trim(),
-          cats: new Set([CAT_LABEL[cat], ...[].concat(x.CAT_NAME ?? [])]),
-          pic: x.PIC ?? null,
-        });
+  const t0 = Date.now();
+  // Category pages are ~1 MB each and slow from Supabase's region, so fetch them concurrently.
+  const pages = await Promise.all(
+    CATS.map((cat) =>
+      get(`${BASE}/epaygo/${cat}`, { as: 'text' })
+        .then((html) => [cat, html])
+        .catch((err) => {
+          console.warn(`  epaygo: category ${cat} failed: ${err.message}`);
+          return [cat, ''];
+        }),
+    ),
+  );
+  for (const [cat, html] of pages) {
+    for (const x of embeddedArray(html, 'events_page_tt')) {
+      const id = x['SALE.PUBLIC_ID'];
+      if (!id) continue;
+      const prev = byId.get(id);
+      if (prev) {
+        prev.cats.add(CAT_LABEL[cat]);
+        continue;
       }
-    } catch (err) {
-      console.warn(`  epaygo: category ${cat} failed: ${err.message}`);
+      const d = dmyToLocal(x['SALE.EVENT_DATE']);
+      byId.set(id, {
+        name: decodeEntities(x['SALE.NAME'] ?? '').trim(),
+        date: d?.date ?? null,
+        time: d?.time ?? x.EVENT_HOUR ?? null,
+        place: decodeEntities(x['SALE.EVENT_PLACE'] ?? '').trim(),
+        cats: new Set([CAT_LABEL[cat], ...[].concat(x.CAT_NAME ?? [])]),
+        pic: x.PIC ?? null,
+      });
     }
-    await sleep(400);
   }
+  console.log(`  epaygo: ${CATS.length} category pages in ${Date.now() - t0}ms, ${byId.size} sales`);
 
   // Names, organiser and date range for every sale (also catches sales not in any category).
-  const allHtml = await get(`${BASE}/events/all`, { as: 'text' });
+  const [allHtml, cityHtml] = await Promise.all([
+    get(`${BASE}/events/all`, { as: 'text' }),
+    get(`${BASE}/epaygo/city/sofia`, { as: 'text' }).catch(() => ''), // optional
+  ]);
+  console.log(`  epaygo: list pages done at ${Date.now() - t0}ms`);
   const ac = new Map(embeddedArray(allHtml, 'autocomplete_events_tt').map((x) => [x.PUBLIC_ID, x]));
   for (const [id, x] of ac) {
     if (byId.has(id)) continue;
@@ -172,14 +183,7 @@ export default async function epaygo() {
   if (byId.size < 50) throw new Error(`epaygo: only ${byId.size} sales parsed, page layout changed?`);
 
   // Sofia-tagged subset: a positive signal only.
-  await sleep(400);
-  const sofiaTagged = new Set();
-  try {
-    const cityHtml = await get(`${BASE}/epaygo/city/sofia`, { as: 'text' });
-    for (const x of embeddedArray(cityHtml, 'events_page_tt')) sofiaTagged.add(x['SALE.PUBLIC_ID']);
-  } catch {
-    /* optional */
-  }
+  const sofiaTagged = new Set(embeddedArray(cityHtml, 'events_page_tt').map((x) => x['SALE.PUBLIC_ID']));
 
   const rows = [];
   for (const [id, e] of byId) {
@@ -213,6 +217,7 @@ export default async function epaygo() {
     await sleep(350);
   }
 
+  console.log(`  epaygo: ${details.size}/${needDetail.length} detail pages, total ${Date.now() - t0}ms`);
   const out = [];
   for (const { id, e, meta, end, city } of rows) {
     const d = details.get(id);
