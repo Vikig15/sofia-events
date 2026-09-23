@@ -254,6 +254,12 @@ function renderChips() {
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
+// Sources without a published time store local midnight; show that honestly.
+function timeLabel(e) {
+  const t = local(e.start_at, { hour: '2-digit', minute: '2-digit' });
+  return t === '00:00' && !e.end_at ? '<small>time TBA</small>' : t;
+}
+
 function card(e) {
   const isNew = Date.now() - Date.parse(e.first_seen) < 48 * 3600000 && !e.recurring;
   const price = e.is_free ? 'Free' : e.price_min != null ? `from ${Number(e.price_min).toFixed(0)} ${e.currency || 'EUR'}` : '';
@@ -261,7 +267,7 @@ function card(e) {
   const others = (e.also_on || []).map((o) => `<a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.source)}</a>`).join(', ');
   const end = e.end_at && dayKey(e.end_at) !== dayKey(e.start_at) ? `<small>→ ${local(e.end_at, { day: 'numeric', month: 'short' })}</small>` : '';
   return `<article class="card">
-    <div class="time">${local(e.start_at, { hour: '2-digit', minute: '2-digit' })}${end}${e.image ? `<img class="thumb" loading="lazy" src="${esc(e.image)}" alt="">` : ''}</div>
+    <div class="time">${timeLabel(e)}${end}${e.image ? `<img class="thumb" loading="lazy" src="${esc(e.image)}" alt="">` : ''}</div>
     <div>
       <a class="title" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>
       ${e.venue_name ? `<div class="venue">${esc(e.venue_name)}</div>` : ''}
